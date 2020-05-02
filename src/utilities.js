@@ -37,14 +37,17 @@ export const getBabelLoader = (config, isOutsideOfApp) => {
 };
 
 export const tap = (options) => (config) => {
+  Object.defineProperty(RegExp.prototype, "toJSON", {
+    value: RegExp.prototype.toString
+  });
   const { message, dest } = options || {}
   const print = []
   if (message) print.push(message)
-  print.push(JSON.stringify(config, null, 2))
+  print.push(JSON.stringify(config, null, 2));
 
   if (dest) {
     const fs = require('fs')
-    fs.appendFile(dest, `${print.join('\n')}\n`)
+    fs.appendFileSync(dest, `${print.join('\n')}\n`)
   }
 
   print.forEach(sentence => console.log(sentence))

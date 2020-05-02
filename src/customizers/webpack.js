@@ -1,281 +1,265 @@
 import { getBabelLoader } from "../utilities";
 
-export const addBundleVisualizer = (
-  options = {},
-  behindFlag = false
-) => config => {
-  const BundleAnalyzerPlugin = require("webpack-bundle-analyzer")
-    .BundleAnalyzerPlugin;
+export const addBundleVisualizer = (options = {}, behindFlag = false) => (config) => {
+    const BundleAnalyzerPlugin = require("webpack-bundle-analyzer").BundleAnalyzerPlugin;
 
-  // if behindFlag is set to true, the report will be created only if
-  // the `--analyze` flag is added to the `yarn build` command
-  if (behindFlag ? process.argv.includes("--analyze") : true) {
-    config.plugins.push(
-      new BundleAnalyzerPlugin(
-        Object.assign(
-          {
-            analyzerMode: "static",
-            reportFilename: "report.html"
-          },
-          options
-        )
-      )
-    );
-  }
-  return config;
-};
-
-export const disableEsLint = () => config => {
-  let eslintRules = config.module.rules.filter(
-    r => r.use && r.use.some(u => u.options && u.options.useEslintrc !== void 0)
-  );
-  eslintRules.forEach(rule => {
-    config.module.rules = config.module.rules.filter(r => r !== rule);
-  });
-  return config;
-};
-
-export const addWebpackAlias = alias => config => {
-  if (!config.resolve) {
-    config.resolve = {};
-  }
-  if (!config.resolve.alias) {
-    config.resolve.alias = {};
-  }
-  Object.assign(config.resolve.alias, alias);
-  return config;
-};
-
-export const addWebpackResolve = resolve => config => {
-  if (!config.resolve) {
-    config.resolve = {};
-  }
-  Object.assign(config.resolve, resolve);
-  return config;
-};
-
-export const addWebpackPlugin = plugin => config => {
-  config.plugins.push(plugin);
-  return config;
-};
-
-export const adjustWorkbox = adjust => config => {
-  config.plugins.forEach(p => {
-    if (p.constructor.name === "GenerateSW") {
-      adjust(p.config);
-    }
-  });
-  return config;
-};
-
-export const adjustStyleLoaders = callback => config => {
-  const mode = process.env.NODE_ENV === 'production' ? 'prod' : 'dev';
-  const loader = mode === 'prod' ? 'css-extract-plugin' : 'style-loader';
-
-  const loaders = config.module.rules.find(rule => Array.isArray(rule.oneOf))
-    .oneOf;
-  const styleLoaders = loaders.filter(({ use }) => use && use[0] && (use[0].loader || use[0]).includes(loader));
-  styleLoaders.forEach(loader => callback(loader));
-
-  return config;
-};
-
-export const useEslintRc = configFile => config => {
-  const eslintRule = config.module.rules.filter(
-    r => r.use && r.use.some(u => u.options && u.options.useEslintrc !== void 0)
-  )[0];
-
-  eslintRule.use[0].options.useEslintrc = true;
-  eslintRule.use[0].options.ignore = true;
-  eslintRule.use[0].options.configFile = configFile;
-
-  delete eslintRule.use[0].options.baseConfig;
-
-  const rules = config.module.rules.map(r =>
-    r.use && r.use.some(u => u.options && u.options.useEslintrc !== void 0)
-      ? eslintRule
-      : r
-  );
-  config.module.rules = rules;
-
-  return config;
-};
-
-export const enableEslintTypescript = () => config => {
-  const eslintRule = config.module.rules.filter(
-    r => r.use && r.use.some(u => u.options && u.options.useEslintrc !== void 0)
-  )[0];
-
-  eslintRule.test = /\.([j,t]sx?|mjs)$/;
-
-  const rules = config.module.rules.map(r =>
-    r.use && r.use.some(u => u.options && u.options.useEslintrc !== void 0)
-      ? eslintRule
-      : r
-  );
-  config.module.rules = rules;
-
-  return config;
-};
-
-export const addLessLoader = (loaderOptions = {}) => config => {
-  const mode = process.env.NODE_ENV === "development" ? "dev" : "prod";
-
-  // Need these for production mode, which are copied from react-scripts
-  const publicPath = require("react-scripts/config/paths").servedPath;
-  const shouldUseRelativeAssetPaths = publicPath === "./";
-  const shouldUseSourceMap =
-    mode === "prod" && process.env.GENERATE_SOURCEMAP !== "false";
-  const lessRegex = /\.less$/;
-  const lessModuleRegex = /\.module\.less$/;
-  const localIdentName =
-    loaderOptions.localIdentName || "[path][name]__[local]--[hash:base64:5]";
-
-  const getLessLoader = cssOptions => {
-    return [
-      mode === "dev"
-        ? require.resolve("style-loader")
-        : {
-            loader: require("mini-css-extract-plugin").loader,
-            options: Object.assign(
-              {},
-              shouldUseRelativeAssetPaths ? { publicPath: "../../" } : undefined
+    // if behindFlag is set to true, the report will be created only if
+    // the `--analyze` flag is added to the `yarn build` command
+    if (behindFlag ? process.argv.includes("--analyze") : true) {
+        config.plugins.push(
+            new BundleAnalyzerPlugin(
+                Object.assign(
+                    {
+                        analyzerMode: "static",
+                        reportFilename: "report.html",
+                    },
+                    options
+                )
             )
-          },
-      {
-        loader: require.resolve("css-loader"),
-        options: cssOptions
-      },
-      {
-        loader: require.resolve("postcss-loader"),
-        options: {
-          ident: "postcss",
-          plugins: () => [
-            require("postcss-flexbugs-fixes"),
-            require("postcss-preset-env")({
-              autoprefixer: {
-                flexbox: "no-2009"
-              },
-              stage: 3
-            })
-          ],
-          sourceMap: shouldUseSourceMap
-        }
-      },
-      {
-        loader: require.resolve("less-loader"),
-        options: Object.assign(loaderOptions, {
-          source: shouldUseSourceMap
-        })
-      }
-    ];
-  };
-
-  const loaders = config.module.rules.find(rule => Array.isArray(rule.oneOf))
-    .oneOf;
-
-  // Insert less-loader as the penultimate item of loaders (before file-loader)
-  loaders.splice(
-    loaders.length - 1,
-    0,
-    {
-      test: lessRegex,
-      exclude: lessModuleRegex,
-      use: getLessLoader({
-        importLoaders: 2
-      }),
-      sideEffects: mode === "prod"
-    },
-    {
-      test: lessModuleRegex,
-      use: getLessLoader({
-        importLoaders: 2,
-        modules: true,
-        localIdentName: localIdentName
-      })
+        );
     }
-  );
+    return config;
+};
 
-  return config;
+export const disableEsLint = () => (config) => {
+    let eslintRules = config.module.rules.filter(
+        (r) => r.use && r.use.some((u) => u.options && u.options.useEslintrc !== void 0)
+    );
+    eslintRules.forEach((rule) => {
+        config.module.rules = config.module.rules.filter((r) => r !== rule);
+    });
+    return config;
+};
+
+export const addWebpackAlias = (alias) => (config) => {
+    if (!config.resolve) {
+        config.resolve = {};
+    }
+    if (!config.resolve.alias) {
+        config.resolve.alias = {};
+    }
+    Object.assign(config.resolve.alias, alias);
+    return config;
+};
+
+export const addWebpackResolve = (resolve) => (config) => {
+    if (!config.resolve) {
+        config.resolve = {};
+    }
+    Object.assign(config.resolve, resolve);
+    return config;
+};
+
+export const addWebpackPlugin = (plugin) => (config) => {
+    config.plugins.push(plugin);
+    return config;
+};
+
+export const adjustWorkbox = (adjust) => (config) => {
+    config.plugins.forEach((p) => {
+        if (p.constructor.name === "GenerateSW") {
+            adjust(p.config);
+        }
+    });
+    return config;
+};
+
+export const adjustStyleLoaders = (callback) => (config) => {
+    const mode = process.env.NODE_ENV === "production" ? "prod" : "dev";
+    const loader = mode === "prod" ? "css-extract-plugin" : "style-loader";
+
+    const loaders = config.module.rules.find((rule) => Array.isArray(rule.oneOf)).oneOf;
+    const styleLoaders = loaders.filter(({ use }) => use && use[0] && (use[0].loader || use[0]).includes(loader));
+    styleLoaders.forEach((loader) => callback(loader));
+
+    return config;
+};
+
+export const useEslintRc = (configFile) => (config) => {
+    const eslintRule = config.module.rules.filter(
+        (r) => r.use && r.use.some((u) => u.options && u.options.useEslintrc !== void 0)
+    )[0];
+
+    eslintRule.use[0].options.useEslintrc = true;
+    eslintRule.use[0].options.ignore = true;
+    eslintRule.use[0].options.configFile = configFile;
+
+    delete eslintRule.use[0].options.baseConfig;
+
+    const rules = config.module.rules.map((r) =>
+        r.use && r.use.some((u) => u.options && u.options.useEslintrc !== void 0) ? eslintRule : r
+    );
+    config.module.rules = rules;
+
+    return config;
+};
+
+export const enableEslintTypescript = () => (config) => {
+    const eslintRule = config.module.rules.filter(
+        (r) => r.use && r.use.some((u) => u.options && u.options.useEslintrc !== void 0)
+    )[0];
+
+    eslintRule.test = /\.([j,t]sx?|mjs)$/;
+
+    const rules = config.module.rules.map((r) =>
+        r.use && r.use.some((u) => u.options && u.options.useEslintrc !== void 0) ? eslintRule : r
+    );
+    config.module.rules = rules;
+
+    return config;
+};
+
+export const addLessLoader = (loaderOptions = {}, customizeOptions = {}) => (config) => {
+    const mode = process.env.NODE_ENV === "development" ? "dev" : "prod";
+
+    // Need these for production mode, which are copied from react-scripts
+    const publicPath = require("react-scripts/config/paths").servedPath;
+    const shouldUseRelativeAssetPaths = publicPath === "./";
+    const shouldUseSourceMap = mode === "prod" && process.env.GENERATE_SOURCEMAP !== "false";
+    const lessRegex = /\.less$/;
+    const lessModuleRegex = /\.module\.less$/;
+    const localIdentName = customizeOptions.localIdentName || "[path][name]__[local]--[hash:base64:5]";
+
+    const getLessLoader = (cssOptions) => {
+        return [
+            mode === "dev"
+                ? require.resolve("style-loader")
+                : {
+                      loader: require("mini-css-extract-plugin").loader,
+                      options: Object.assign({}, shouldUseRelativeAssetPaths ? { publicPath: "../../" } : undefined),
+                  },
+            {
+                loader: require.resolve("css-loader"),
+                options: cssOptions,
+            },
+            {
+                loader: require.resolve("postcss-loader"),
+                options: {
+                    ident: "postcss",
+                    plugins: () => [
+                        require("postcss-flexbugs-fixes"),
+                        require("postcss-preset-env")({
+                            autoprefixer: {
+                                flexbox: "no-2009",
+                            },
+                            stage: 3,
+                        }),
+                    ],
+                    sourceMap: shouldUseSourceMap,
+                },
+            },
+            {
+                loader: require.resolve("less-loader"),
+                options: {
+                    ...loaderOptions,
+                    lessOptions: { ...loaderOptions.lessOptions, env: process.env.NODE_ENV },
+                    sourceMap: shouldUseSourceMap
+                },
+            },
+        ];
+    };
+
+    const loaders = config.module.rules.find((rule) => Array.isArray(rule.oneOf)).oneOf;
+
+    // Insert less-loader as the penultimate item of loaders (before file-loader)
+    loaders.splice(
+        loaders.length - 1,
+        0,
+        {
+            test: lessRegex,
+            exclude: lessModuleRegex,
+            use: getLessLoader({
+                importLoaders: 2,
+            }),
+            sideEffects: mode === "prod",
+        },
+        {
+            test: lessModuleRegex,
+            use: getLessLoader({
+                importLoaders: 2,
+                modules: true,
+                localIdentName: localIdentName,
+            }),
+        }
+    );
+
+    return config;
 };
 
 // to be used inside `overrideDevServer`, makes CRA watch all the folders
 // included `node_modules`, useful when you are working with linked packages
 // usage: `yarn start --watch-all`
-export const watchAll = () => config => {
-  if (process.argv.includes("--watch-all")) {
-    delete config.watchOptions;
-  }
-  return config;
+export const watchAll = () => (config) => {
+    if (process.argv.includes("--watch-all")) {
+        delete config.watchOptions;
+    }
+    return config;
 };
 
 // to be used to disable chunk according to:
 // https://github.com/facebook/create-react-app/issues/5306#issuecomment-433425838
-export const disableChunk = () => config => {
-  config.optimization.splitChunks = {
-    cacheGroups: {
-      default: false
-    }
-  };
+export const disableChunk = () => (config) => {
+    config.optimization.splitChunks = {
+        cacheGroups: {
+            default: false,
+        },
+    };
 
-  config.optimization.runtimeChunk = false;
+    config.optimization.runtimeChunk = false;
 
-  return config;
+    return config;
 };
 
 // to be used to ignore replace packages with global variable
 // Useful when trying to offload libs to CDN
-export const addWebpackExternals = externalDeps => config => {
-  let externals = config.externals;
-  if (!externals) {
-    externals = externalDeps;
-  } else if (Array.isArray(externalDeps)) {
-    externals = externalDeps.concat(externals);
-  } else if (
-    Array.isArray(externals) ||
-    externalDeps.constructor === Function ||
-    externalDeps.constructor === RegExp
-  ) {
-    externals = [externalDeps].concat(externals);
-  } else if (externalDeps instanceof Object && externals instanceof Object) {
-    externals = {
-      ...externals,
-      ...externalDeps
-    };
-  }
+export const addWebpackExternals = (externalDeps) => (config) => {
+    let externals = config.externals;
+    if (!externals) {
+        externals = externalDeps;
+    } else if (Array.isArray(externalDeps)) {
+        externals = externalDeps.concat(externals);
+    } else if (
+        Array.isArray(externals) ||
+        externalDeps.constructor === Function ||
+        externalDeps.constructor === RegExp
+    ) {
+        externals = [externalDeps].concat(externals);
+    } else if (externalDeps instanceof Object && externals instanceof Object) {
+        externals = {
+            ...externals,
+            ...externalDeps,
+        };
+    }
 
-  config.externals = externals;
-  return config;
+    config.externals = externals;
+    return config;
 };
 
-export const addPostcssPlugins = plugins => config => {
-  const rules = config.module.rules.find(rule => Array.isArray(rule.oneOf))
-    .oneOf;
-  rules.forEach(
-    r =>
-      r.use &&
-      r.use.forEach(u => {
-        if (u.options && u.options.ident === "postcss") {
-          if (!u.options.plugins) {
-            u.options.plugins = () => [...plugins];
-          }
-          if (u.options.plugins) {
-            const originalPlugins = u.options.plugins;
-            u.options.plugins = () => [...originalPlugins(), ...plugins];
-          }
-        }
-      })
-  );
-  return config;
+export const addPostcssPlugins = (plugins) => (config) => {
+    const rules = config.module.rules.find((rule) => Array.isArray(rule.oneOf)).oneOf;
+    rules.forEach(
+        (r) =>
+            r.use &&
+            r.use.forEach((u) => {
+                if (u.options && u.options.ident === "postcss") {
+                    if (!u.options.plugins) {
+                        u.options.plugins = () => [...plugins];
+                    }
+                    if (u.options.plugins) {
+                        const originalPlugins = u.options.plugins;
+                        u.options.plugins = () => [...originalPlugins(), ...plugins];
+                    }
+                }
+            })
+    );
+    return config;
 };
 
 // This will remove the CRA plugin that prevents to import modules from
 // outside the `src` directory, useful if you use a different directory
-export const removeModuleScopePlugin = () => config => {
-  config.resolve.plugins = config.resolve.plugins.filter(
-    p => p.constructor.name !== "ModuleScopePlugin"
-  );
-  return config;
+export const removeModuleScopePlugin = () => (config) => {
+    config.resolve.plugins = config.resolve.plugins.filter((p) => p.constructor.name !== "ModuleScopePlugin");
+    return config;
 };
 
 /**
@@ -284,24 +268,24 @@ export const removeModuleScopePlugin = () => config => {
  * @param rule The rule to be added
  * @see https://webpack.js.org/configuration/module/#modulerules
  */
-export const addWebpackModuleRule = rule => config => {
-  for (let _rule of config.module.rules) {
-    if (_rule.oneOf) {
-      _rule.oneOf.unshift(rule);
-      break;
+export const addWebpackModuleRule = (rule) => (config) => {
+    for (let _rule of config.module.rules) {
+        if (_rule.oneOf) {
+            _rule.oneOf.unshift(rule);
+            break;
+        }
     }
-  }
-  return config;
+    return config;
 };
 
-export const addTslintLoader = options => config => {
-  config.module.rules.unshift({
-    test: /\.(ts|tsx)$/,
-    loader: "tslint-loader",
-    options,
-    enforce: "pre"
-  });
-  return config;
+export const addTslintLoader = (options) => (config) => {
+    config.module.rules.unshift({
+        test: /\.(ts|tsx)$/,
+        loader: "tslint-loader",
+        options,
+        enforce: "pre",
+    });
+    return config;
 };
 
 /**
@@ -311,9 +295,9 @@ export const addTslintLoader = options => config => {
  *
  * @see https://webpack.js.org/configuration/target/
  */
-export const setWebpackTarget = target => config => {
-  config.target = target;
-  return config;
+export const setWebpackTarget = (target) => (config) => {
+    config.target = target;
+    return config;
 };
 
 /**
@@ -322,19 +306,19 @@ export const setWebpackTarget = target => config => {
  * @param path What to set the webpack publicPath as.
  * @see https://webpack.js.org/configuration/output/#outputpublicpath
  */
-export const setWebpackPublicPath = path => config => {
-  if (path) {
-    if (!(path.startsWith("http") || path.startsWith("https"))) {
-      if (!path.startsWith("/")) {
-        path = "/" + path;
-      }
+export const setWebpackPublicPath = (path) => (config) => {
+    if (path) {
+        if (!(path.startsWith("http") || path.startsWith("https"))) {
+            if (!path.startsWith("/")) {
+                path = "/" + path;
+            }
+        }
+        if (!path.endsWith("/")) {
+            path = path + "/";
+        }
+        config.output.publicPath = path;
     }
-    if (!path.endsWith("/")) {
-      path = path + "/";
-    }
-    config.output.publicPath = path;
-  }
-  return config;
+    return config;
 };
 
 /**
@@ -343,11 +327,11 @@ export const setWebpackPublicPath = path => config => {
  * @param configuration of optimization.splitChunks
  * @see https://webpack.js.org/plugins/split-chunks-plugin/
  */
-export const setWebpackOptimizationSplitChunks = splitChunks => config => {
-  if (splitChunks && typeof splitChunks === "object") {
-    config.optimization.splitChunks = splitChunks;
-  }
-  return config;
+export const setWebpackOptimizationSplitChunks = (splitChunks) => (config) => {
+    if (splitChunks && typeof splitChunks === "object") {
+        config.optimization.splitChunks = splitChunks;
+    }
+    return config;
 };
 
 /**
@@ -357,7 +341,7 @@ export const setWebpackOptimizationSplitChunks = splitChunks => config => {
  * @param stats Stats configuration in Webpack
  * @see https://webpack.js.org/configuration/stats/
  */
-export const setWebpackStats = stats => config => {
-  config.stats = stats;
-  return config;
+export const setWebpackStats = (stats) => (config) => {
+    config.stats = stats;
+    return config;
 };

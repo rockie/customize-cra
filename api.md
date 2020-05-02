@@ -2,42 +2,43 @@
 
 This file documents the functions exported by `customize-cra`.
 
-- [`customizers`](#customizers)
-  - [addTslintLoader](#addtslintloaderloaderoptions)
-  - [addExternalBabelPlugin](#addexternalbabelpluginplugin)
-  - [addExternalBabelPlugins](#addexternalbabelpluginsplugins)
-  - [addBabelPlugin](#addbabelpluginplugin)
-  - [addBabelPlugins](#addbabelpluginsplugins)
-  - [addBabelPreset](#addbabelpresetpreset)
-  - [addBabelPresets](#addbabelpresetspresets)
-  - [babelInclude](#babelinclude)
-  - [babelExclude](#babelexcludeexclude)
-  - [removeInternalBabelPlugin](#removeinternalbabelpluginpluginname)
-  - [fixBabelImports](#fixbabelimportslibraryname-options)
-  - [addDecoratorsLegacy](#adddecoratorslegacy)
-  - [useBabelRc](#usebabelrc)
-  - [disableEsLint](#disableeslint)
-  - [useEslintRc](#useeslintrcconfigfile)
-  - [enableEslintTypescript](#enableeslinttypescript)
-  - [addWebpackAlias](#addwebpackaliasalias)
-  - [addWebpackResolve](#addwebpackresolveresolve)
-  - [addWebpackPlugin](#addwebpackpluginplugin)
-  - [addWebpackExternals](#addwebpackexternalsdeps)
-  - [addWebpackModuleRule](#addwebpackmodulerulerule)
-  - [setWebpackTarget](#setwebpacktargettarget)
-  - [setWebpackStats](#setwebpackstats)
-  - [addBundleVisualizer](#addbundlevisualizeroptions-behindflag--false)
-  - [setWebpackOptimizationSplitChunks](#setwebpackoptimizationsplitchunkstarget)
-  - [adjustWorkbox](#adjustworkboxfn)
-  - [addLessLoader](#addlessloaderloaderoptions)
-  - [addPostcssPlugins](#addpostcsspluginsplugins)
-  - [disableChunk](#disablechunk)
-  - [removeModuleScopePlugin](#removemodulescopeplugin)
-  - [watchAll](#watchall)
-  - [adjustStyleLoaders](#adjustStyleLoaders)
-- [`utilities`](#utilities)
-  - [getBabelLoader](#getbabelloaderconfig-isoutsideofapp)
-  - [tap](#tapoptions)
+- [api docs](#api-docs)
+  - [`customizers`](#customizers)
+    - [addTslintLoader(loaderOptions)](#addtslintloaderloaderoptions)
+    - [addExternalBabelPlugin(plugin)](#addexternalbabelpluginplugin)
+    - [addExternalBabelPlugins(plugins)](#addexternalbabelpluginsplugins)
+    - [addBabelPlugin(plugin)](#addbabelpluginplugin)
+    - [addBabelPlugins(plugins)](#addbabelpluginsplugins)
+    - [addBabelPreset(preset)](#addbabelpresetpreset)
+    - [addBabelPresets(...presets)](#addbabelpresetspresets)
+    - [babelInclude](#babelinclude)
+    - [babelExclude(exclude)](#babelexcludeexclude)
+    - [removeInternalBabelPlugin(pluginName)](#removeinternalbabelpluginpluginname)
+    - [fixBabelImports(libraryName, options)](#fixbabelimportslibraryname-options)
+    - [addDecoratorsLegacy()](#adddecoratorslegacy)
+    - [disableEsLint()](#disableeslint)
+    - [useEslintRc(configFile)](#useeslintrcconfigfile)
+    - [enableEslintTypescript()](#enableeslinttypescript)
+    - [addWebpackAlias(alias)](#addwebpackaliasalias)
+    - [addWebpackResolve(resolve)](#addwebpackresolveresolve)
+    - [addWebpackPlugin(plugin)](#addwebpackpluginplugin)
+    - [addWebpackExternals(deps)](#addwebpackexternalsdeps)
+    - [addWebpackModuleRule(rule)](#addwebpackmodulerulerule)
+    - [setWebpackTarget(target)](#setwebpacktargettarget)
+    - [setWebpackStats(stats)](#setwebpackstatsstats)
+    - [addBundleVisualizer(options, behindFlag = false)](#addbundlevisualizeroptions-behindflag--false)
+    - [setWebpackOptimizationSplitChunks(target)](#setwebpackoptimizationsplitchunkstarget)
+    - [useBabelRc()](#usebabelrc)
+    - [adjustWorkbox(fn)](#adjustworkboxfn)
+    - [addLessLoader(loaderOptions)](#addlessloaderloaderoptions)
+    - [addPostcssPlugins([plugins])](#addpostcsspluginsplugins)
+    - [disableChunk](#disablechunk)
+    - [removeModuleScopePlugin()](#removemodulescopeplugin)
+    - [watchAll()](#watchall)
+    - [adjustStyleLoaders(callback)](#adjuststyleloaderscallback)
+  - [`utilities`](#utilities)
+    - [getBabelLoader(config, isOutsideOfApp)](#getbabelloaderconfig-isoutsideofapp)
+    - [tap(options)](#tapoptions)
 
 ## `customizers`
 
@@ -378,7 +379,7 @@ After it's done, call `addLessLoader` in `override` like below:
 ```js
 const { addLessLoader } = require("customize-cra");
 
-module.exports = override(addLessLoader(loaderOptions));
+module.exports = override(addLessLoader(loaderOptions, customizeOptions));
 ```
 
 `loaderOptions` is optional. If you have Less specific options, you can pass to it. For example:
@@ -388,14 +389,31 @@ const { addLessLoader } = require("customize-cra");
 
 module.exports = override(
   addLessLoader({
-    strictMath: true,
-    noIeCompat: true,
-    localIdentName: "[local]--[hash:base64:5]" // if you use CSS Modules, and custom `localIdentName`, default is '[local]--[hash:base64:5]'.
+    lessOptions: {
+      math: "always"
+    }
+    
   })
 );
 ```
 
 Check [Less document](http://lesscss.org/usage/#command-line-usage-options) for all available specific options you can use.
+
+`customzieOptions` is optional. If you have customize-cra specific options, you can pass to it. For example:
+
+```js
+const { addLessLoader } = require("customize-cra");
+
+module.exports = override(
+  addLessLoader({
+    lessOptions: {
+      math: "always"
+    }    
+  }, {
+    localIdentName: "[local]--[hash:base64:5]" // if you use CSS Modules, and custom `localIdentName`, default is '[local]--[hash:base64:5]'.
+  })
+);
+```
 
 Once `less-loader` is enabled, you can import `.less` file in your project.
 
